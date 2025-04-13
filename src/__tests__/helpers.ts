@@ -40,6 +40,7 @@ export const createRetryHandler = (delay = 100, result = 'success after retry') 
     attempts.set(key, attempt);
     
     if (attempt === 1) {
+      console.log('First attempt failed');
       throw new Error('First attempt failed');
     }
     return { ...data, result, attempt };
