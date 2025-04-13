@@ -1,6 +1,5 @@
-// @ts-ignore
-import { ToadScheduler } from '../../lib/scheduler/toad-scheduler';
-import { JobResult } from '../../lib/scheduler/types';
+import { createScheduler, SchedulerType } from '../lib/scheduler';
+import { JobResult, SchedulerOptions } from '../lib/scheduler/types';
 import {
   createSuccessHandler,
   createFailureHandler,
@@ -9,14 +8,14 @@ import {
   createDelayedStartHandler,
   waitForJobResult,
   sleep
-} from '../helpers';
+} from './helpers';
 
-describe('ToadScheduler', () => {
-  let scheduler: ToadScheduler;
+describe('Generic Scheduler Interface', () => {
+  let scheduler: ReturnType<typeof createScheduler>;
   
   beforeEach(() => {
-    // Create a new scheduler instance for each test
-    scheduler = new ToadScheduler();
+    // Create a new scheduler instance for each test using the factory
+    scheduler = createScheduler(SchedulerType.TOAD, 'test-scheduler');
   });
 
   afterEach(() => {
@@ -26,7 +25,7 @@ describe('ToadScheduler', () => {
   it('should execute a job successfully', async () => {
     // Create a promise that will resolve when the job completes
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -45,7 +44,7 @@ describe('ToadScheduler', () => {
   it('should handle job failures', async () => {
     // Create a promise that will resolve when the job fails
     const jobFailed = new Promise<JobResult>(resolve => {
-      scheduler.onFailed(async (data, error) => {
+      scheduler.onFailed(async (data: any, error: any) => {
         resolve({ id: 'test', data, error: error as Error });
       });
     });
@@ -64,7 +63,7 @@ describe('ToadScheduler', () => {
   it('should retry failed jobs', async () => {
     // Create a promise that will resolve when the job completes after retry
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -83,7 +82,7 @@ describe('ToadScheduler', () => {
   it('should execute cron jobs', async () => {
     // Create a promise that will resolve when the cron job executes
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -103,7 +102,7 @@ describe('ToadScheduler', () => {
   it('should execute delayed start jobs', async () => {
     // Create a promise that will resolve when the delayed job executes
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -138,8 +137,6 @@ describe('ToadScheduler', () => {
 
     expect(jobCompleted).toBe(false);
   });
-
-  // New tests for more thorough coverage
 
   it('should handle multiple jobs concurrently', async () => {
     const results: JobResult[] = [];
@@ -177,7 +174,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with custom ID', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'custom-id', data, result });
       });
     });
@@ -194,7 +191,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with complex data', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -225,7 +222,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with zero delay', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -241,7 +238,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with very long delay', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -269,7 +266,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with empty data', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -285,7 +282,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with null data', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -301,7 +298,7 @@ describe('ToadScheduler', () => {
 
   it('should handle job with undefined data', async () => {
     const jobCompleted = new Promise<JobResult>(resolve => {
-      scheduler.onCompleted(async (data, result) => {
+      scheduler.onCompleted(async (data: any, result: any) => {
         resolve({ id: 'test', data, result });
       });
     });
@@ -313,5 +310,32 @@ describe('ToadScheduler', () => {
     const result = await jobCompleted;
     expect(result.data).toBeUndefined();
     expect(result.result.result).toBe('undefined data success');
+  });
+
+  it('should handle multiple callbacks', async () => {
+    const completedResults: any[] = [];
+    const failedResults: any[] = [];
+    
+    scheduler.onCompleted(async (data: any, result: any) => {
+      completedResults.push({ data, result });
+    });
+    
+    scheduler.onFailed(async (data: any, error: any) => {
+      failedResults.push({ data, error });
+    });
+    
+    const successHandler = createSuccessHandler(100, 'success');
+    const failureHandler = createFailureHandler(100, 'failure');
+    
+    scheduler.schedule(successHandler, { type: 'success' });
+    scheduler.schedule(failureHandler, { type: 'failure' });
+    
+    // Wait for both jobs to complete
+    await sleep(200);
+    
+    expect(completedResults.length).toBe(1);
+    expect(failedResults.length).toBe(1);
+    expect(completedResults[0].result.result).toBe('success');
+    expect(failedResults[0].error.message).toBe('failure');
   });
 }); 

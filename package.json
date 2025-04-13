@@ -12,8 +12,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "jest --testPathPattern=src/__tests__/toad",
+    "test": "jest \"src/__tests__/(toad|generic).*\\.test\\.ts$\"",
+    "test:toad": "jest --testPathPattern=src/__tests__/toad",
     "test:bull": "jest --testPathPattern=src/__tests__/bull",
+    "test:generic": "jest --testPathPattern=src/__tests__/generic",
     "test:all": "jest",
     "prepublishOnly": "npm run build"
   },
