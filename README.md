@@ -1,16 +1,15 @@
 # Forge Queue Library
 
-A flexible job queue library that supports both Bull (Redis-based) and Toad (in-memory) schedulers.
+A queue library for Forge that supports both in-memory (Toad) and Redis-based (Bull) job scheduling.
 
 ## Features
 
-- Support for both Bull (Redis-based) and Toad (in-memory) schedulers
-- Consistent API across different scheduler implementations
-- Job scheduling with cron expressions
-- Delayed job execution
-- Job retry with exponential backoff
-- Success and failure callbacks
-- TypeScript support
+- In-memory job scheduling with Toad Scheduler
+- Redis-based job scheduling with Bull
+- Support for cron jobs
+- Support for delayed jobs
+- Automatic retries with exponential backoff
+- Job completion and failure callbacks
 
 ## Installation
 
@@ -20,76 +19,110 @@ npm install forge-lib-queue
 
 ## Usage
 
+### Basic Usage
+
 ```typescript
-import { createScheduler, SchedulerType } from "forge-lib-queue";
+import { ToadScheduler } from "forge-lib-queue";
 
-// Create a Bull scheduler (requires Redis)
-const bullScheduler = createScheduler(SchedulerType.BULL, "my-queue", {
-  redis: {
-    host: "localhost",
-    port: 6379,
-  },
-});
-
-// Create a Toad scheduler (in-memory)
-const toadScheduler = createScheduler(SchedulerType.TOAD, "my-queue");
-
-// Define a job handler
-const handler = async (data: any) => {
-  console.log("Processing job:", data);
-  // Your job logic here
-};
+// Create a scheduler
+const scheduler = new ToadScheduler();
 
 // Schedule a job
 scheduler.schedule(
-  handler,
-  { foo: "bar" },
-  {
-    cron: "*/5 * * * *", // Run every 5 minutes
-    retry: 3, // Retry up to 3 times on failure
-  }
+  async (data) => {
+    console.log("Processing job with data:", data);
+    return "Job completed";
+  },
+  { foo: "bar" }
 );
 
-// Add completion callback
+// Handle job completion
 scheduler.onCompleted(async (data, result) => {
-  console.log("Job completed:", { data, result });
+  console.log("Job completed with result:", result);
 });
 
-// Add failure callback
+// Handle job failures
 scheduler.onFailed(async (data, error) => {
-  console.error("Job failed:", { data, error });
+  console.error("Job failed with error:", error);
 });
 ```
 
-## Configuration
+### Using Bull with Redis
 
-### Scheduler Options
+```typescript
+import { BullScheduler } from "forge-lib-queue";
 
-- `redis`: Redis connection options (Bull only)
-  - `host`: Redis host
-  - `port`: Redis port
-  - `password`: Redis password (optional)
+// Create a Bull scheduler with Redis connection
+const scheduler = new BullScheduler("my-queue", {
+  redis: {
+    host: "localhost",
+    port: 6379,
+    password: "optional-password",
+  },
+});
 
-### Job Options
+// Schedule a job with retry
+scheduler.schedule(
+  async (data) => {
+    console.log("Processing job with data:", data);
+    return "Job completed";
+  },
+  { foo: "bar" },
+  { retry: 3 }
+);
 
-- `cron`: Cron expression for recurring jobs
-- `delay`: Delay in milliseconds before job execution
-- `retry`: Number of retry attempts on failure
-- `jobId`: Custom job ID (auto-generated if not provided)
-- `priority`: Job priority (Bull only)
+// Schedule a cron job
+scheduler.schedule(
+  async (data) => {
+    console.log("Running cron job");
+  },
+  { type: "cron" },
+  { cron: "*/5 * * * *" } // Run every 5 minutes
+);
 
-## Development
+// Schedule a delayed job
+scheduler.schedule(
+  async (data) => {
+    console.log("Running delayed job");
+  },
+  { type: "delayed" },
+  { delay: 60000 } // Run after 1 minute
+);
+```
+
+## Testing
+
+The library includes comprehensive tests for both the Toad and Bull implementations.
+
+### Running Tests
+
+By default, only the Toad tests will run (no Redis dependency):
 
 ```bash
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Watch mode during development
-npm run dev
+npm test
 ```
+
+To run the Bull tests (requires Redis):
+
+```bash
+npm run test:bull
+```
+
+To run all tests:
+
+```bash
+npm run test:all
+```
+
+### Redis Configuration for Tests
+
+To run the Bull tests, you need to have Redis available. You can configure the Redis connection using environment variables:
+
+```bash
+REDIS_HOST=localhost REDIS_PORT=6379 REDIS_PASSWORD=your-password npm run test:bull
+```
+
+If these environment variables are not set, the Bull tests will be skipped automatically.
 
 ## License
 

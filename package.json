@@ -12,19 +12,24 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --testPathPattern=src/__tests__/toad",
+    "test:bull": "jest --testPathPattern=src/__tests__/bull",
+    "test:all": "jest",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "queue",
     "forge"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Tycho Luyben",
+  "license": "MIT",
   "devDependencies": {
     "@types/bull": "^3.15.9",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.11.24",
     "@types/uuid": "^10.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
