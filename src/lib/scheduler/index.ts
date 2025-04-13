@@ -2,16 +2,22 @@ import { BullScheduler } from './bull-scheduler';
 import { ToadScheduler } from './toad-scheduler';
 import { SchedulerOptions, JobOptions, JobHandler, JobCallback } from './types';
 
+export enum SchedulerType {
+  BULL = 'bull',
+  TOAD = 'toad'
+}
+
 /**
  * Factory function to create the appropriate scheduler based on environment config
  */
-export function createScheduler(name: string, options: SchedulerOptions = {}) {
-  const schedulerType = process.env.SCHEDULER?.toLowerCase() || 'toad';
-  
-  if (schedulerType === 'bull') {
-    return new BullScheduler(name, options);
-  } else {
-    return new ToadScheduler(name, options);
+export function createScheduler(type: SchedulerType, name: string, options: SchedulerOptions = {}) {
+  switch (type) {
+    case SchedulerType.BULL:
+      return new BullScheduler(name, options);
+    case SchedulerType.TOAD:
+      return new ToadScheduler(options);
+    default:
+      throw new Error(`Unknown scheduler type: ${type}`);
   }
 }
 

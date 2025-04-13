@@ -1,86 +1,70 @@
 import Queue from 'bull';
-import { Scheduler } from './index';
-import { SchedulerOptions, JobOptions } from './types';
+import { JobCallback, JobHandler, JobOptions, JobResult, SchedulerOptions } from './types';
 
-export class BullScheduler extends Scheduler {
+export class BullScheduler {
   private queue: Queue.Queue;
-  private isProcessing: boolean = false;
-  
-  constructor(name: string, options: SchedulerOptions = {}) {
-    super(name, options);
-    
-    // Create Bull queue
-    this.queue = new Queue(name, {
-      redis: options.redis || {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-        password: process.env.REDIS_PASSWORD
-      }
+  private onComplete?: JobCallback;
+  private onError?: JobCallback;
+
+  constructor(queueName: string, options?: SchedulerOptions) {
+    this.queue = new Queue(queueName, {
+      redis: options?.redis
     });
-    
+
     // Set up event handlers
-    this.queue.on('completed', async (job, result) => {
-      if (this.completedCallback) {
-        await this.completedCallback(job.data, result);
+    this.setupEventHandlers();
+  }
+
+  private setupEventHandlers(): void {
+    // Handle job completion
+    this.queue.on('completed', async (job: Queue.Job, result: any) => {
+      if (this.onComplete) {
+        await this.onComplete(job.data, result);
       }
     });
-    
-    this.queue.on('failed', async (job, error) => {
-      if (this.failedCallback) {
-        await this.failedCallback(job.data, error);
+
+    // Handle job failures
+    this.queue.on('failed', async (job: Queue.Job, error: Error) => {
+      if (this.onError) {
+        await this.onError(job.data, error);
       }
     });
   }
-  
-  /**
-   * Start processing jobs
-   */
-  start(): this {
-    if (!this.jobHandler) {
-      throw new Error('No job handler defined. Use .handle() to define a handler.');
-    }
-    
-    if (!this.isProcessing) {
-      this.queue.process(async (job) => {
-        return await this.jobHandler!(job.data);
-      });
-      this.isProcessing = true;
-    }
-    
-    return this;
-  }
-  
-  /**
-   * Stop processing jobs
-   */
-  async stop(): Promise<this> {
-    await this.queue.close();
-    this.isProcessing = false;
-    return this;
-  }
-  
-  /**
-   * Add a job to the queue
-   */
-  async job(data: any, options: JobOptions = {}): Promise<any> {
-    const bullOptions: Queue.JobOptions = {
-      attempts: (options.retry || 0) + 1,
-      jobId: options.jobId,
-      priority: options.priority
+
+  schedule(handler: JobHandler, data: any, options?: JobOptions): this {
+    const jobOptions: Queue.JobOptions = {
+      attempts: options?.retry || 1,
+      delay: options?.delay || 0,
+      jobId: options?.jobId,
+      priority: options?.priority
     };
-    
-    // Handle delay
-    if (options.delay) {
-      bullOptions.delay = options.delay;
+
+    if (options?.cron) {
+      this.queue.add(data, { ...jobOptions, repeat: { cron: options.cron } });
+    } else {
+      this.queue.add(data, jobOptions);
     }
-    
-    // Handle cron repeat
-    if (options.cron) {
-      bullOptions.repeat = {
-        cron: options.cron
-      };
-    }
-    
-    return await this.queue.add(data, bullOptions);
+
+    // Set up the processor
+    this.queue.process(async (job: Queue.Job) => {
+      return handler(job.data);
+    });
+
+    return this;
+  }
+
+  onCompleted(callback: JobCallback): this {
+    this.onComplete = callback;
+    return this;
+  }
+
+  onFailed(callback: JobCallback): this {
+    this.onError = callback;
+    return this;
+  }
+
+  stop(): this {
+    this.queue.close();
+    return this;
   }
 }
